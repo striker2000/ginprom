@@ -1,6 +1,7 @@
 # ginprom
 
 [![GoDoc](https://godoc.org/github.com/striker2000/ginprom?status.svg)](https://godoc.org/github.com/striker2000/ginprom)
+[![Go Report Card](https://goreportcard.com/badge/github.com/striker2000/ginprom)](https://goreportcard.com/report/github.com/striker2000/ginprom)
 
 Ginprom collects metrics in the Gin web framework and exports it to the Prometheus.
 
