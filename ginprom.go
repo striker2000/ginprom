@@ -26,8 +26,11 @@
 package ginprom
 
 import (
+	"net"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -87,14 +90,38 @@ func (p *Prometheus) Middleware(c *gin.Context) {
 	p.reqInFlight.Inc()
 	start := time.Now()
 
+	defer func() {
+		p.reqDuration.Observe(time.Since(start).Seconds())
+		p.reqInFlight.Dec()
+
+		status := c.Writer.Status()
+		panicErr := recover()
+
+		if panicErr != nil {
+			var brokenPipe bool
+			if ne, ok := panicErr.(*net.OpError); ok {
+				if se, ok := ne.Err.(*os.SyscallError); ok {
+					s := strings.ToLower(se.Error())
+					if strings.Contains(s, "broken pipe") ||
+						strings.Contains(s, "connection reset by peer") {
+						brokenPipe = true
+					}
+				}
+			}
+
+			if !brokenPipe {
+				status = http.StatusInternalServerError
+			}
+		}
+
+		p.reqTotal.WithLabelValues(strconv.Itoa(status)).Inc()
+
+		if panicErr != nil {
+			panic(panicErr)
+		}
+	}()
+
 	c.Next()
-
-	p.reqDuration.Observe(time.Since(start).Seconds())
-	p.reqInFlight.Dec()
-
-	p.reqTotal.WithLabelValues(
-		strconv.Itoa(c.Writer.Status()),
-	).Inc()
 }
 
 // Handler exports collected metrics to the caller.
